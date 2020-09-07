@@ -189,27 +189,3 @@ def _inkscape(pdf, page):
 
     lines = output.decode('utf-8').split('\n')
     return _InkscapeSVG(float(lines[0]), float(lines[1]), '\n'.join(lines[2:]))
-
-
-def _pdfseparate(pdf):
-    """Separate a PDF file into its pages, returning a list of paths
-    corresponding to the individual pages in ascending numerical order.
-    """
-
-    # Turn "texput.pdf" into "texput-N.pdf".
-    split = pdf.name.split('.')
-    prefix = '.'.join(split[:-1]) + '-'
-    suffix = '.' + split[-1]
-    page_filename_template = pdf.parent / (prefix + '%d' + suffix)
-
-    subprocess.run(["pdfseparate", pdf, pdf.parent / page_filename_template],
-            capture_output=True,
-            check=True)
-
-    page_paths = []
-    for num in itertools.count(1):
-        page_path = pdf.parent / (prefix + str(num) + suffix)
-        if page_path.exists():
-            page_paths.append(page_path)
-        else:
-            return page_paths
