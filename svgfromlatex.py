@@ -2,12 +2,15 @@
 Dependencies: pdflatex, inkscape
 """
 
+import base64
+import html
 import itertools
 import re
 from pathlib import Path
 import shlex
 import subprocess
 import tempfile
+import textwrap
 
 __all__ = ['LatexSVG', 'render']
 
@@ -32,6 +35,34 @@ class LatexSVG:
 
     def __str__(self):
         return self.svg
+
+    def css(self):
+        """Return CSS styles which can be used on an <img> tag. These
+        rules will align the baseline with the surrounding text and
+        scale the image appropriately.
+        """
+
+        return ' '.join([
+            f"display:inline-block;",
+            f"width:{self.width}ex;",
+            f"height:{self.height}ex;",
+            f"vertical-align:{-self.depth}ex;",
+        ])
+
+    def embeddable(self):
+        """Return a string representing a self-contained HTML <img> tag,
+        which can be used to display the rendered LaTeX inline.
+        """
+
+        svg_without_prolog = '\n'.join(self.svg.split('\n')[1:])
+        base64_encoded = base64.b64encode(svg_without_prolog.encode("utf-8")).decode("utf-8")
+        escaped_latex = html.escape(self.latex).replace('\n', '&#13;&#10;')
+
+        return ' '.join([
+            f'<img style="{self.css()}"',
+            f'src="data:image/svg+xml;base64, {base64_encoded}"',
+            f'alt="{escaped_latex}" title="{escaped_latex}">',
+        ])
 
 
 def render(sources, preamble=r'\documentclass{minimal}'):
