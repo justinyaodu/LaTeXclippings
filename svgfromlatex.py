@@ -109,11 +109,15 @@ def _pdflatex(latex, working_dir):
     the path of the rendered PDF.
     """
 
-    subprocess.run(["pdflatex"],
+    completed_process = subprocess.run(["pdflatex"],
             cwd=working_dir,
             input=latex.encode(),
-            capture_output=True,
-            check=True)
+            capture_output=True)
+
+    try:
+        completed_process.check_returncode()
+    except subprocess.CalledProcessError as e:
+        raise ValueError(completed_process.stdout.decode('utf-8')) from e
 
     return working_dir / "texput.pdf"
 
