@@ -133,9 +133,7 @@ def _assemble_latex(pages, preamble):
     contains the portion of sources[n] below the baseline.
     """
 
-    # Ensure that the trimclip package is available.
-    if not re.match(r'\\usepackage(\[[^\]]*\])?\{trimclip\}', preamble):
-        preamble += '\n' + r'\usepackage{trimclip}'
+    preamble += '\n' + r'\usepackage{trimclip}'
 
     return '\n'.join([
             preamble,
