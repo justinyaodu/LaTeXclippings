@@ -120,9 +120,9 @@ def _get_pages(sources):
 
         # Render only the part below the baseline.
         pages.append('\n'.join([
-                r'\begin{clipbox}{0 0 0 {\height}}',
+                r'\begin{clipbox}{0 0 0 {\height}}\vbox{',
                 source,
-                r'\end{clipbox}']))
+                r'}\end{clipbox}']))
 
     return pages
 
