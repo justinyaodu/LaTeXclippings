@@ -12,7 +12,8 @@ import subprocess
 import tempfile
 import textwrap
 
-__all__ = ['LatexSVG', 'render']
+__all__ = ['RenderResult', 'LatexSVG', 'render']
+
 
 class LatexSVG:
     """Represents an SVG rendered from LaTeX source."""
@@ -65,10 +66,18 @@ class LatexSVG:
         ])
 
 
+class RenderResult:
+    """Contains the rendered SVGs and command-line logs."""
+
+    def __init__(self, rendered, pdflatex_log):
+        self.rendered = rendered
+        self.pdflatex_log = pdflatex_log
+
+
 def render(sources, preamble=r'\documentclass{minimal}'):
     """Given an array of LaTeX source code strings, render each LaTeX
-    string on a separate page, and return an array of corresponding
-    LatexSVG instances.
+    string on a separate page, convert them to SVG, and return them in
+    a RenderResult.
     """
     
     latex_pages = _get_pages(sources)
@@ -76,7 +85,7 @@ def render(sources, preamble=r'\documentclass{minimal}'):
 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir = Path(temp_dir)
-        pdf = _pdflatex(latex, temp_dir)
+        pdf, pdflatex_output = _pdflatex(latex, temp_dir)
         svg_pages = [_inkscape(pdf, i) for i in range(len(latex_pages))]
 
     one_ex = svg_pages[0].height
@@ -92,7 +101,7 @@ def render(sources, preamble=r'\documentclass{minimal}'):
             svg_page_full.height / one_ex,
             svg_page_below_baseline.height / one_ex))
 
-    return latex_svgs
+    return RenderResult(latex_svgs, pdflatex_output)
 
 
 def _get_pages(sources):
@@ -137,7 +146,7 @@ def _assemble_latex(pages, preamble):
 
 def _pdflatex(latex, working_dir):
     """Render LaTeX source to a PDF in the working directory, returning
-    the path of the rendered PDF.
+    the path of the rendered PDF and the output of pdflatex.
     """
 
     completed_process = subprocess.run(["pdflatex"],
@@ -145,12 +154,14 @@ def _pdflatex(latex, working_dir):
             input=latex.encode(),
             capture_output=True)
 
+    pdflatex_output = completed_process.stdout.decode("utf-8")
+
     try:
         completed_process.check_returncode()
     except subprocess.CalledProcessError as e:
-        raise ValueError(completed_process.stdout.decode('utf-8')) from e
+        raise ValueError(pdflatex_output) from e
 
-    return working_dir / "texput.pdf"
+    return (working_dir / "texput.pdf", pdflatex_output)
 
 
 class _InkscapeSVG:
