@@ -159,7 +159,13 @@ def _pdflatex(latex, working_dir):
     try:
         completed_process.check_returncode()
     except subprocess.CalledProcessError as e:
-        raise ValueError(pdflatex_output) from e
+        raise ValueError('\n'.join([
+            f"pdflatex failed (exit status {completed_process.returncode}).",
+            "LaTeX source:",
+            textwrap.indent(latex, "  " * 4),
+            "pdflatex log:",
+            textwrap.indent(pdflatex_output, " " * 4),
+        ])) from e
 
     return (working_dir / "texput.pdf", pdflatex_output)
 
