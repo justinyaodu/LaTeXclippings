@@ -74,7 +74,7 @@ class LatexFile:
         r"l\.(?P<line_num>[0-9]+) (?P<line_contents>.*)$",
     ])
 
-    def __init__(self, preamble, clippings):
+    def __init__(self, clippings, preamble=r"\documentclass{minimal}"):
         self.clippings = [LatexClipping(c) for c in clippings]
         self._init_chunks(preamble, clippings)
 
