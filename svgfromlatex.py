@@ -120,9 +120,10 @@ def _get_pages(sources):
 
         # Render only the part below the baseline.
         pages.append('\n'.join([
-                r'\begin{clipbox}{0 0 0 {\height}}\vbox{%',
-                textwrap.indent(source, "  ") + '%',
-                r'}\end{clipbox}']))
+            r'\begin{clipbox}{0 0 0 {\height}}\vbox{%',
+            textwrap.indent(source, "  ") + '%',
+            r'}\end{clipbox}',
+        ]))
 
     return pages
 
@@ -136,13 +137,14 @@ def _assemble_latex(pages, preamble):
     preamble += '\n' + r'\usepackage{trimclip}'
 
     return '\n'.join([
-            preamble,
-            "",
-            r'\begin{document}',
-            "",
-            ("\n\n" + r"\newpage" + "\n\n").join(pages),
-            "",
-            r'\end{document}'])
+        preamble,
+        "",
+        r'\begin{document}',
+        "",
+        ("\n\n" + r"\newpage" + "\n\n").join(pages),
+        "",
+        r'\end{document}',
+    ])
 
 
 def _pdflatex(latex, working_dir):
