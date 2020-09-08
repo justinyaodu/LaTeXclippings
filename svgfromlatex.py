@@ -44,7 +44,7 @@ class LatexSVG:
         """
 
         return ' '.join([
-            f"display:inline-block;",
+            "display:inline-block;",
             f"width:{self.width}ex;",
             f"height:{self.height}ex;",
             f"vertical-align:{-self.depth}ex;",
