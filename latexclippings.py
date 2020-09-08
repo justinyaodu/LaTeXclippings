@@ -35,24 +35,22 @@ class LatexFile:
         self.chunks.append(_LatexChunk("lowercase x", ["x"], True))
 
         for clipping, clipping_index in zip(clippings, itertools.count()):
-            clipping_lines = clipping.split("\n")
-
             # Render clipping normally.
             self.chunks.append(_LatexChunk(
                 f"clipping {clipping_index}",
-                clipping_lines,
+                ("{" + clipping + "}").split("\n"),
                 True,
                 clipping_index
             ))
 
             # Render portion of clipping below baseline to measure depth.
             self.chunks.append(_LatexChunk(
-                "clipping {clipping_index} (below baseline only)",
-                [
-                    r"\begin{clipbox}{0 0 0 {\height}}\vbox{",
-                    *clipping_lines,
-                    r"}\end{clipbox}",
-                ],
+                f"clipping {clipping_index} (below baseline only)",
+                (
+                    r"\begin{clipbox}{0 0 0 {\height}}\vbox{"
+                    + clipping
+                    + r"}\end{clipbox}"
+                ).split("\n"),
                 True,
                 clipping_index
             ))
@@ -100,8 +98,10 @@ class LatexFile:
         return working_dir / "clippings.pdf"
 
     _pdflatex_error_regex = "".join([
+        r"(?m)",
         r"^! (?P<error_msg>.*)[\n]",
-        r"l\.(?P<line_num>[0-9]+) (?P<line_contents>.*)$",
+        r"(?P<inserted_text>(?:.*[\n])+)?",
+        r"^l\.(?P<line_num>[0-9]+) (?P<line_contents>.*)$",
     ])
 
     def _parse_pdflatex_log(self, log):
@@ -127,8 +127,7 @@ class LatexFile:
                 if clipping.log is None:
                     clipping.log = log_section
 
-            match = re.search(__class__._pdflatex_error_regex, log_section,
-                    re.MULTILINE)
+            match = re.search(__class__._pdflatex_error_regex, log_section)
             if match:
                 groupdict = match.groupdict()
 
@@ -149,6 +148,7 @@ class LatexFile:
                     context_lines.append(prefix + chunk.lines[i])
                 context = "\n".join(context_lines)
 
+                # Add 1 to make line number one-indexed.
                 display_line_num = chunk_line_num - chunk.source_start + 1
 
                 raise LatexError(chunk.clipping_index, chunk.name,
