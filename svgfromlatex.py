@@ -150,25 +150,25 @@ def _pdflatex(latex, working_dir):
     the path of the rendered PDF and the output of pdflatex.
     """
 
-    completed_process = subprocess.run(["pdflatex"],
-            cwd=working_dir,
-            input=latex.encode(),
-            capture_output=True)
-
-    pdflatex_output = completed_process.stdout.decode("utf-8")
+    pdflatex_process = subprocess.run(["pdflatex"],
+        cwd=working_dir,
+        text=True,
+        input=latex,
+        capture_output=True,
+    )
 
     try:
-        completed_process.check_returncode()
+        pdflatex_process.check_returncode()
     except subprocess.CalledProcessError as e:
         raise ValueError('\n'.join([
-            f"pdflatex failed (exit status {completed_process.returncode}).",
+            f"pdflatex failed (exit status {pdflatex_process.returncode}).",
             "LaTeX source:",
             textwrap.indent(latex, "  " * 4),
             "pdflatex log:",
-            textwrap.indent(pdflatex_output, " " * 4),
+            textwrap.indent(pdflatex_process.stdout, " " * 4),
         ])) from e
 
-    return (working_dir / "texput.pdf", pdflatex_output)
+    return (working_dir / "texput.pdf", pdflatex_process.stdout)
 
 
 class _InkscapeSVG:
