@@ -1,10 +1,12 @@
+import base64
+import html
 import itertools
 from pathlib import Path
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
-import textwrap
 
 
 class LatexFile:
@@ -66,10 +68,7 @@ class LatexFile:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir = Path(temp_dir)
             pdf_path = self._pdflatex(temp_dir)
-
-            # TODO
-            subprocess.run(["firefox", shlex.quote(str(pdf_path))])
-            input()
+            self._load_svgs_from_pdf(pdf_path)
 
     def _pdflatex(self, working_dir):
         """Convert this LaTeX document to a PDF. Raise LatexError if
@@ -155,13 +154,68 @@ class LatexFile:
                 raise LatexError(chunk.clipping_index, chunk.name,
                         display_line_num, groupdict['error_msg'], context)
 
+    def _load_svgs_from_pdf(self, pdf_path):
+        """Load SVGs from the rendered PDF into the LatexClippings."""
+
+        one_ex = _cropped_pdf_page(pdf_path, 1).height
+
+        for clipping, index in zip(self.clippings, itertools.count(1)):
+            image_full = _cropped_pdf_page(pdf_path, 2 * index)
+            image_below_baseline = _cropped_pdf_page(pdf_path, 2 * index + 1)
+
+            clipping.svg = image_full.source
+            clipping.width = image_full.width / one_ex
+            clipping.height = image_full.height / one_ex
+            clipping.depth = image_below_baseline.height / one_ex
+
 
 class LatexClipping:
     """Represent a rendered LaTeX clipping."""
 
     def __init__(self, latex):
+        # LaTeX source.
         self.latex = latex
+
+        # pdflatex log from generating this clipping.
         self.log = None
+
+        # Image measurements in ex. Depth is the height of the portion
+        # of the image below the baseline.
+        self.width = None
+        self.height = None
+        self.depth = None
+
+        # SVG source.
+        self.svg = None
+
+    def css(self):
+        """Return CSS styles which can be applied to an inline <img> tag
+        containing this clipping's SVG. These rules will align the
+        baseline and scale the image to match the surrounding text.
+        """
+
+        return " ".join([
+            "display: inline-block;",
+            f"width: {self.width}ex;",
+            f"height: {self.height}ex;",
+            f"vertical-align: {-self.depth}ex;"
+        ])
+
+    def embeddable(self):
+        """Return a string representing a HTML <img> tag, which contains
+        the base64-encoded SVG and CSS rules for inline display.
+        """
+
+        svg_without_prolog = "\n".join(self.svg.split("\n")[1:])
+        base64_encoded = (base64.b64encode(svg_without_prolog.encode("utf-8"))
+                .decode("utf-8"))
+        escaped_latex = html.escape(self.latex).replace("\n", "&#13;&#10;")
+
+        return " ".join([
+            f'<img style="{self.css()}"',
+            f'alt="{escaped_latex}" title="{escaped_latex}"',
+            f'src="data:image/svg+xml;base64, {base64_encoded}">',
+        ])
 
 
 class LatexError(Exception):
@@ -214,3 +268,48 @@ class _LatexChunk:
 
     def __str__(self):
         return "\n".join(self.lines)
+
+
+class _SVG:
+    """Represent an SVG image with dimension information."""
+
+    def __init__(self, width, height, source):
+        # Width, in px.
+        self.width = width
+
+        # Height, in px.
+        self.height = height
+
+        # SVG data.
+        self.source = source
+
+
+def _cropped_pdf_page(pdf_path, page):
+    """Extract a page of the specified PDF as an _SVG."""
+
+    lines = subprocess.run(
+        [
+            "inkscape",
+            "--pdf-poppler",
+            f"--pdf-page={page}",
+            "--query-width",
+            "--query-height",
+            "--export-plain-svg",
+            "--export-area-drawing",
+            "--export-filename=-",
+            shlex.quote(str(pdf_path))
+        ],
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.split('\n')
+
+    return _SVG(float(lines[0]), float(lines[1]), '\n'.join(lines[2:]))
+
+
+def _main(args):
+    pass
+
+
+if __name__ == "__main__":
+    _main(sys.argv)
