@@ -4,107 +4,194 @@ import re
 import shlex
 import subprocess
 import tempfile
+import textwrap
 
 
 class _LatexChunk:
-    """Represent multiple lines of logically related LaTeX source code.
-    """
+    """Represent a section of logically related LaTeX source code."""
     
-    CHUNK_HEADER = r"\typeout{svgfromlatex chunk header}"
+    # Precedes the log output for each chunk.
+    CHUNK_HEADER = "SVGFROMLATEX CHUNK HEADER"
 
-    _error_regex = ''.join([
-        r"^! (?P<error_msg>.*)$",
-        r"^l\.(?P<line_num>[0-9]+) (?P<line_contents>.*)$",
-    ])
+    def __init__(self, name, lines, new_page=False, page_num=None):
+        self.name = name
+        self.page_num = page_num
 
-    def __init__(self, lines, offset):
-        self.source_lines = lines
-        self.lines = [__class__.CHUNK_HEADER, *lines, r"\newpage"]
-        self.log = None
-        self.offset = offset
+        self.lines = [r"\typeout{" + __class__.CHUNK_HEADER + "}"]
+        self.source_start = 1
+        if new_page:
+            self.lines.append(r"\newpage")
+            self.source_start += 1
+        self.lines.extend(lines)
 
     def __len__(self):
         return len(self.lines)
 
     def __str__(self):
-        return '\n'.join(self.lines)
+        return "\n".join(self.lines)
 
-    def _parse_log(self, log):
-        self.log = log
 
-        match = re.match(__class__._error_regex, log, flags=re.MULTILINE)
-        if match:
-            groupdict = match.groupdict()
+class LatexError(Exception):
+    """Raised when an error occurs while rendering LaTeX."""
 
-            line_num = int(groupdict["line_num"]) - self.offset - 1
+    def __init__(self, page_num, location, line_num, error_msg, context):
+        # Zero-indexed page number.
+        self.page_num = page_num
 
-            context_lines = []
-            for i in range(len(self.source_lines)):
-                if i == line_num:
-                    prefix = "> "
-                else:
-                    prefix = "  "
-                context_lines.append(prefix + self.source_lines[i])
-            context = '\n'.join(context_lines)
+        # Human-readable chunk name.
+        self.location = location
 
-            msg = f"Line {line_num}: {groupdict['error_msg']}\n{context}"
-            raise ValueError(msg)
+        # One-indexed line number of the error.
+        self.line_num = line_num
+
+        self.error_msg = error_msg
+
+        # Point out the error line and show a few adjacent lines.
+        self.context = context
+
+        super().__init__(str(self))
+
+    def __str__(self):
+        return "".join([
+            f"{self.location}, line {self.line_num}: {self.error_msg}\n",
+            self.context,
+        ])
+
+
+class LatexPage:
+    """Represent a page of rendered LaTeX output."""
+
+    def __init__(self, latex):
+        self.latex = latex
+        self.log = None
 
 
 class LatexFile:
     """Represent the source of a LaTeX document."""
 
-    def __init__(self, preamble, pages):
-        self.chunks = []
-        for chunk_lines in self._chunk_lines(preamble, pages):
-            self.chunks.append(_LatexChunk(chunk_lines, len(self)))
+    _error_regex = "".join([
+        r"^! (?P<error_msg>.*)[\n]",
+        r"l\.(?P<line_num>[0-9]+) (?P<line_contents>.*)$",
+    ])
 
-    def __len__(self):
-        # Linear time complexity is probably not a concern here.
-        return sum(len(chunk) for chunk in self.chunks)
+    def __init__(self, preamble, pages):
+        self.pages = [LatexPage(page) for page in pages]
+        self._init_chunks(preamble, pages)
+
+    def _init_chunks(self, preamble, pages):
+        self.chunks = []
+
+        self.chunks.append(_LatexChunk(
+            "preamble",
+            [
+                *preamble.split("\n"),
+                r"\usepackage{trimclip}",
+                r"\begin{document}",
+            ]
+        ))
+
+        # Lowercase x, for measuring an ex with the current font.
+        self.chunks.append(_LatexChunk("lowercase x", ["x"], True))
+
+        for page, page_num in zip(pages, itertools.count()):
+            page_lines = page.split("\n")
+
+            # Render page normally.
+            self.chunks.append(_LatexChunk(
+                f"page {page_num}",
+                page_lines,
+                True,
+                page_num
+            ))
+
+            # Render portion of page below baseline to measure depth.
+            self.chunks.append(_LatexChunk(
+                "page {page_num} (clipped)",
+                [
+                    r"\begin{clipbox}{0 0 0 {\height}}\vbox{",
+                    *page_lines,
+                    r"}\end{clipbox}",
+                ],
+                True,
+                page_num
+            ))
+
+        self.chunks.append(_LatexChunk("document end", [r"\end{document}"]))
 
     def __str__(self):
-        return '\n'.join(str(chunk) for chunk in self.chunks)
-
-    def _chunk_lines(self, preamble, pages):
-        yield [*preamble.split('\n'), r"\usepackage{trimclip}"]
-        yield ['x']
-        for page in pages:
-            page_lines = page.split('\n')
-            yield page_lines
-            yield [
-                r"\begin{clipbox}{0 0 0 {\height}}\vbox{",
-                *page_lines,
-                r"}\end{clipbox}",
-            ]
+        return "\n".join(str(chunk) for chunk in self.chunks)
 
     def _parse_log(self, log):
-        log_sections = log.split(_LatexChunk.CHUNK_HEADER + '\n')
+        log_sections = log.split(_LatexChunk.CHUNK_HEADER + "\n")
 
-        # Skip the unneeded log section before the first header.
+        # Skip the initialization output (before start of preamble).
         log_sections = log_sections[1:]
 
-        for chunk, log_section in zip(self.chunks, log_sections):
-            chunk.parse_log(log_section)
+        for _ in zip(self.chunks, log_sections, itertools.count()):
+            chunk, log_section, index = _
+            page = None
+
+            if chunk.page_num is not None:
+                page = self.pages[chunk.page_num]
+
+                # Only assign the log of the first chunk with this page
+                # number (the second chunk is the clipped page).
+                if page.log is None:
+                    page.log = log_section
+
+            match = re.search(__class__._error_regex, log_section, re.MULTILINE)
+            if match:
+                groupdict = match.groupdict()
+
+                # Get zero-indexed line numbers.
+                file_line_num = int(groupdict['line_num']) - 1
+                chunk_line_num = (file_line_num
+                        - sum(len(c) for c in self.chunks[:index]))
+
+                context_lines = []
+                context_dist = 2
+                for i in range(
+                        max(chunk.source_start, chunk_line_num - context_dist),
+                        min(len(chunk), chunk_line_num + context_dist + 1)):
+                    if i == chunk_line_num:
+                        prefix = "> "
+                    else:
+                        prefix = "  "
+                    context_lines.append(prefix + chunk.lines[i])
+                context = "\n".join(context_lines)
+
+                display_line_num = chunk_line_num - chunk.source_start + 1
+
+                raise LatexError(index, chunk.name, display_line_num,
+                        groupdict['error_msg'], context)
 
     def _render(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir = Path(temp_dir)
 
+            tex_file = temp_dir / "pages.tex"
+
+            with open(tex_file, "w") as f:
+                f.write(str(self))
+
             pdflatex_process = subprocess.run(
-                ["pdflatex"],
+                [
+                    "pdflatex",
+                    "-halt-on-error",
+                    shlex.quote(str(tex_file))
+                ],
                 cwd=temp_dir,
                 text=True,
-                input=str(self),
                 capture_output=True,
             )
 
             self._parse_log(pdflatex_process.stdout)
+
             try:
                 pdflatex_process.check_returncode()
-            except subprocess.CalledProcessError:
-                raise ValueError(pdflatex_process.stdout)
+            except subprocess.CalledProcessError as e:
+                raise ValueError(pdflatex_process.stdout) from e
 
             # TODO
-            subprocess.run(["firefox", shlex.quote(str(temp_dir / "texput.pdf"))])
+            subprocess.run(["firefox", shlex.quote(str(temp_dir / "pages.pdf"))])
             input()
