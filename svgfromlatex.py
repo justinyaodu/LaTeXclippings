@@ -57,7 +57,7 @@ class LatexSVG:
 
         svg_without_prolog = '\n'.join(self.svg.split('\n')[1:])
         base64_encoded = base64.b64encode(svg_without_prolog.encode("utf-8")).decode("utf-8")
-        escaped_latex = html.escape(self.latex).replace('\n', '&#13;&#10;')
+        escaped_latex = html.escape(self.latex).replace('\n', "&#13;&#10;")
 
         return ' '.join([
             f'<img style="{self.css()}"',
