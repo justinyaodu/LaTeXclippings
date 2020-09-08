@@ -187,23 +187,24 @@ class _InkscapeSVG:
 
 def _inkscape(pdf, page):
     """Convert a (zero-indexed) page of the specified PDF to a cropped
-    SVG. Returns a dict {width, height, svg}.
+    SVG. Returns an _InkscapeSVG.
     """
 
-    output = subprocess.run(
-            [
-                "inkscape",
-                "--pdf-poppler",
-                f"--pdf-page={page + 1}",
-                "--query-width",
-                "--query-height",
-                "--export-plain-svg",
-                "--export-area-drawing",
-                "--export-filename=-",
-                shlex.quote(str(pdf))
-            ],
-            capture_output=True,
-            check=True).stdout
+    lines = subprocess.run(
+        [
+            "inkscape",
+            "--pdf-poppler",
+            f"--pdf-page={page + 1}",
+            "--query-width",
+            "--query-height",
+            "--export-plain-svg",
+            "--export-area-drawing",
+            "--export-filename=-",
+            shlex.quote(str(pdf))
+        ],
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.split('\n')
 
-    lines = output.decode('utf-8').split('\n')
     return _InkscapeSVG(float(lines[0]), float(lines[1]), '\n'.join(lines[2:]))
