@@ -13,9 +13,9 @@ class _LatexChunk:
     # Precedes the log output for each chunk.
     CHUNK_HEADER = "SVGFROMLATEX CHUNK HEADER"
 
-    def __init__(self, name, lines, new_page=False, page_num=None):
+    def __init__(self, name, lines, new_page=False, clipping_index=None):
         self.name = name
-        self.page_num = page_num
+        self.clipping_index = clipping_index
 
         self.lines = [r"\typeout{" + __class__.CHUNK_HEADER + "}"]
         self.source_start = 1
@@ -34,9 +34,9 @@ class _LatexChunk:
 class LatexError(Exception):
     """Raised when an error occurs while rendering LaTeX."""
 
-    def __init__(self, page_num, location, line_num, error_msg, context):
-        # Zero-indexed page number.
-        self.page_num = page_num
+    def __init__(self, clipping_index, location, line_num, error_msg, context):
+        # Index of the clipping this error occurred in.
+        self.clipping_index = clipping_index
 
         # Human-readable chunk name.
         self.location = location
@@ -58,8 +58,8 @@ class LatexError(Exception):
         ])
 
 
-class LatexPage:
-    """Represent a page of rendered LaTeX output."""
+class LatexClipping:
+    """Represent a rendered LaTeX clipping."""
 
     def __init__(self, latex):
         self.latex = latex
@@ -74,11 +74,11 @@ class LatexFile:
         r"l\.(?P<line_num>[0-9]+) (?P<line_contents>.*)$",
     ])
 
-    def __init__(self, preamble, pages):
-        self.pages = [LatexPage(page) for page in pages]
-        self._init_chunks(preamble, pages)
+    def __init__(self, preamble, clippings):
+        self.clippings = [LatexClipping(c) for c in clippings]
+        self._init_chunks(preamble, clippings)
 
-    def _init_chunks(self, preamble, pages):
+    def _init_chunks(self, preamble, clippings):
         self.chunks = []
 
         self.chunks.append(_LatexChunk(
@@ -93,27 +93,27 @@ class LatexFile:
         # Lowercase x, for measuring an ex with the current font.
         self.chunks.append(_LatexChunk("lowercase x", ["x"], True))
 
-        for page, page_num in zip(pages, itertools.count()):
-            page_lines = page.split("\n")
+        for clipping, clipping_index in zip(clippings, itertools.count()):
+            clipping_lines = clipping.split("\n")
 
-            # Render page normally.
+            # Render clipping normally.
             self.chunks.append(_LatexChunk(
-                f"page {page_num}",
-                page_lines,
+                f"clipping {clipping_index}",
+                clipping_lines,
                 True,
-                page_num
+                clipping_index
             ))
 
-            # Render portion of page below baseline to measure depth.
+            # Render portion of clipping below baseline to measure depth.
             self.chunks.append(_LatexChunk(
-                "page {page_num} (clipped)",
+                "clipping {clipping_index} (below baseline only)",
                 [
                     r"\begin{clipbox}{0 0 0 {\height}}\vbox{",
-                    *page_lines,
+                    *clipping_lines,
                     r"}\end{clipbox}",
                 ],
                 True,
-                page_num
+                clipping_index
             ))
 
         self.chunks.append(_LatexChunk("document end", [r"\end{document}"]))
@@ -129,15 +129,15 @@ class LatexFile:
 
         for _ in zip(self.chunks, log_sections, itertools.count()):
             chunk, log_section, index = _
-            page = None
+            clipping = None
 
-            if chunk.page_num is not None:
-                page = self.pages[chunk.page_num]
+            if chunk.clipping_index is not None:
+                clipping = self.clippings[chunk.clipping_index]
 
-                # Only assign the log of the first chunk with this page
-                # number (the second chunk is the clipped page).
-                if page.log is None:
-                    page.log = log_section
+                # Only assign the log from rendering the full (not
+                # cropped) clipping.
+                if clipping.log is None:
+                    clipping.log = log_section
 
             match = re.search(__class__._error_regex, log_section, re.MULTILINE)
             if match:
@@ -169,7 +169,7 @@ class LatexFile:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir = Path(temp_dir)
 
-            tex_file = temp_dir / "pages.tex"
+            tex_file = temp_dir / "clippings.tex"
 
             with open(tex_file, "w") as f:
                 f.write(str(self))
@@ -193,5 +193,5 @@ class LatexFile:
                 raise ValueError(pdflatex_process.stdout) from e
 
             # TODO
-            subprocess.run(["firefox", shlex.quote(str(temp_dir / "pages.pdf"))])
+            subprocess.run(["firefox", shlex.quote(str(temp_dir / "clippings.pdf"))])
             input()
