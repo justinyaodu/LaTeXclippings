@@ -3,6 +3,8 @@
 """Batch render LaTeX files to cropped SVG images."""
 
 __all__ = ["LatexFile", "LatexClipping", "LatexError"]
+__version__ = "0.1.0"
+__author__ = "Justin Yao Du"
 
 import argparse
 import base64
