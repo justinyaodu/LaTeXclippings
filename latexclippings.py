@@ -45,7 +45,7 @@ class LatexFile:
             # Render clipping normally.
             self.chunks.append(_LatexChunk(
                 f"clipping {clipping_index}",
-                (r"\begingroup" + clipping + r"\endgroup").split("\n"),
+                (r"\begingroup{}" + clipping + r"\endgroup").split("\n"),
                 True,
                 clipping_index
             ))
@@ -54,9 +54,9 @@ class LatexFile:
             self.chunks.append(_LatexChunk(
                 f"clipping {clipping_index} (below baseline only)",
                 (
-                    r"\begin{clipbox}{0 0 0 {\height}}\vbox\begingroup"
+                    r"\begin{clipbox}{0 0 0 {\height}}\vbox{\begingroup{}"
                     + clipping
-                    + r"\endgroup\end{clipbox}"
+                    + r"\endgroup}\end{clipbox}"
                 ).split("\n"),
                 True,
                 clipping_index
