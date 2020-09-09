@@ -206,9 +206,9 @@ class LatexClipping:
 
         return " ".join([
             "display: inline-block;",
-            f"width: {self.width}ex;",
-            f"height: {self.height}ex;",
-            f"vertical-align: {-self.depth}ex;"
+            f"width: {self.width:.5f}ex;",
+            f"height: {self.height:.5f}ex;",
+            f"vertical-align: {-self.depth:.5f}ex;"
         ])
 
     def embeddable(self):
