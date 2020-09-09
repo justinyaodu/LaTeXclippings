@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+"""Batch render LaTeX source to SVG images."""
+
+__all__ = ["LatexFile", "LatexClipping", "LatexError"]
+
 import argparse
 import base64
 import html
@@ -360,7 +364,7 @@ def _parse_args():
     """Parse command line arguments."""
 
     parser = argparse.ArgumentParser(
-            description="Batch render LaTeX files to SVG images.")
+            description=globals()["__doc__"])
 
     parser.add_argument("-p", "--preamble",
             nargs=1,
