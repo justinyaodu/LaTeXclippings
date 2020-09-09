@@ -12,7 +12,7 @@ LaTeXclippings takes multiple LaTeX files, and an optional preamble, as input. U
 
 Each rendered image is cropped, allowing it to be easily embedded in other content. When generating HTML `<img>` tags, additional CSS style rules are added, which adjust the SVG's scale and baseline to match the surrounding text. No more misaligned equations!
 
-LaTeXclippings provides a simple command-line utility, as well as a Python API for integration into more complex projects (like static website generators). LaTeXclippings also converts `pdflatex` errors into informative Python exceptions, helping you identify the file and line responsible for an error.
+LaTeXclippings also parses the `pdflatex` log, matching up each input file with the corresponding log output. If any error messages are found, they are converted into informative Python exceptions, which identify the file and line responsible for an error.
 
 ## Dependencies
 
