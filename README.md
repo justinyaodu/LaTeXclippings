@@ -12,7 +12,7 @@ LaTeXclippings takes multiple LaTeX files, and an optional preamble, as input. U
 
 Each rendered image is cropped, allowing it to be easily embedded in other content. When generating HTML `<img>` tags, additional CSS style rules are added, which adjust the SVG's scale and baseline to match the surrounding text. No more misaligned equations!
 
-LaTeXclippings provides a simple command-line utility, as well as a Python API for integration into more complex projects (like static website generators). LaTeXclippings also converts `pdflatex` errors to informative Python exceptions, helping you identify which line of which input file has an error.
+LaTeXclippings provides a simple command-line utility, as well as a Python API for integration into more complex projects (like static website generators). LaTeXclippings also converts `pdflatex` errors into informative Python exceptions, helping you identify the file and line responsible for an error.
 
 ## Dependencies
 
@@ -30,7 +30,8 @@ The `latexclippings` command reads LaTeX files (or standard input) and outputs S
 Using standard input and output:
 
 ```console
-$ echo 'Kinetic energy: $ E_k = \frac{1}{2}mv^2 $' | latexclippings > kinetic-energy.svg
+$ # Kinetic energy formula (in classical mechanics).
+$ echo '$ E_k = \frac{1}{2}mv^2 $' | latexclippings > kinetic-energy.svg
 ```
 
 ![Rendered LaTeX: kinetic energy](demo/kinetic-energy.svg)
@@ -38,7 +39,8 @@ $ echo 'Kinetic energy: $ E_k = \frac{1}{2}mv^2 $' | latexclippings > kinetic-en
 Rendering multiple LaTeX files to HTML, using a custom preamble:
 
 ```console
-$ latexclippings --format html --preamble my-preamble.tex apple.tex banana.tex grape.tex
+$ latexclippings --format html --preamble my-preamble.tex \
+>         apple.tex banana.tex grape.tex
 $ ls
 apple.html  banana.html  grape.html  my-preamble.tex
 apple.tex   banana.tex   grape.tex
@@ -47,7 +49,10 @@ apple.tex   banana.tex   grape.tex
 The contents of `apple.html` (note the inline CSS styles for scaling and alignment):
 
 ```html
-<img style="display: inline-block; width: 21.38669ex; height: 2.08727ex; vertical-align: -0.45000ex;" alt="I enjoy eating apples." title="I enjoy eating apples." src="data:image/svg+xml;base64, PHN2ZwogICB4bWxuczp...">
+<img style="display: inline-block; width: 21.38669ex;
+height: 2.08727ex; vertical-align: -0.45000ex;"
+alt="I enjoy eating apples." title="I enjoy eating apples."
+src="data:image/svg+xml;base64, PHN2ZwogICB4bWxuczp...">
 ```
 
 ![Rendered LaTeX: apples](demo/apple.svg)
