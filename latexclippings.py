@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Batch render LaTeX source to SVG images."""
+"""Batch render LaTeX files to cropped SVG images."""
 
 __all__ = ["LatexFile", "LatexClipping", "LatexError"]
 
