@@ -55,7 +55,7 @@ class LatexFile:
 
             # Render portion of clipping below baseline to measure depth.
             self.chunks.append(_LatexChunk(
-                f"clipping {clipping_index} (below baseline only)",
+                f"clipping {clipping_index} (in clipbox)",
                 (
                     r"\begin{clipbox}{0 0 0 {\height}}\vbox{\begingroup{}"
                     + clipping
@@ -342,7 +342,12 @@ def _main():
             with open(path) as f:
                 clippings.append(f.read())
 
-    latex_file = LatexFile(clippings, preamble)
+    try:
+        latex_file = LatexFile(clippings, preamble)
+    except LatexError as e:
+        if e.clipping_index is not None:
+            e.location += f" (input file '{args.file[e.clipping_index]}')"
+        raise
 
     if args.format == "html":
         outputs = [c.embeddable() for c in latex_file.clippings]
