@@ -22,6 +22,9 @@ class LatexFile:
     """
 
     def __init__(self, clippings, preamble=r"\documentclass{minimal}"):
+        # Remove up to one trailing newline.
+        clippings = [re.sub(r"[\n]$", "", c) for c in clippings]
+
         self.clippings = [LatexClipping(c) for c in clippings]
         self._init_chunks(preamble, clippings)
         self._render()
