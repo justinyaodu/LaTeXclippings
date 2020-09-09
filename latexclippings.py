@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+import argparse
 import base64
 import html
 import itertools
@@ -302,14 +305,83 @@ def _cropped_pdf_page(pdf_path, page):
         text=True,
         capture_output=True,
         check=True,
-    ).stdout.split('\n')
+    ).stdout.split("\n")
 
-    return _SVG(float(lines[0]), float(lines[1]), '\n'.join(lines[2:]))
+    return _SVG(float(lines[0]), float(lines[1]), "\n".join(lines[2:]))
 
 
-def _main(args):
-    pass
+def _main():
+    args = _parse_args()
+
+    def log(message):
+        if args.verbose:
+            print(message, file=sys.stderr)
+
+    if args.preamble is None:
+        log("Preamble: default")
+        preamble = r"\documentclass{minimal}"
+    else:
+        log(f"Preamble: '{args.preamble[0]}'")
+        with open(args.preamble[0]) as f:
+            preamble = f.read()
+
+    clippings = []
+    for path in args.file:
+        if path == "-":
+            log("Input: stdin")
+            clippings.append(sys.stdin.read())
+        else:
+            log(f"Input: '{path}'")
+            with open(path) as f:
+                clippings.append(f.read())
+
+    latex_file = LatexFile(clippings, preamble)
+
+    if args.format == "html":
+        outputs = [c.embeddable() for c in latex_file.clippings]
+    elif args.format == "svg":
+        outputs = [c.svg for c in latex_file.clippings]
+    else:
+        raise ValueError
+
+    for path, output in zip(args.file, outputs):
+        if path == "-":
+            log("Output: stdout")
+            sys.stdout.write(output)
+        else:
+            path = Path(path)
+            path = path.parent / (path.stem + "." + args.format)
+            log(f"Output: '{path}'")
+            with open(path, "w") as f:
+                f.write(output)
+
+
+def _parse_args():
+    """Parse command line arguments."""
+
+    parser = argparse.ArgumentParser(
+            description="Batch render LaTeX files to SVG images.")
+
+    parser.add_argument("-p", "--preamble",
+            nargs=1,
+            help="file to use as LaTeX preamble")
+
+    parser.add_argument("-f", "--format",
+            choices=["html", "svg"],
+            default="svg",
+            help="output format for rendered LaTeX")
+
+    parser.add_argument("-v", "--verbose",
+            action="store_true",
+            help="print log to stderr")
+
+    parser.add_argument("file",
+            nargs="*",
+            default=["-"],
+            help="file containing LaTeX source, or - to use stdin")
+
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    _main(sys.argv)
+    _main()
