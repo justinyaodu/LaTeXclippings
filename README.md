@@ -75,6 +75,7 @@ For more sophisticated usage (e.g. integration into a static website generator),
 from latexclippings import LatexFile
 
 lf = LatexFile([r"This is some \LaTeX code.", r"Math: $ \sin(x) $"])
+lf.render()
 
 c = lf.clippings[0]
 print(f"The first clipping is {c.width} by {c.height} ex, "

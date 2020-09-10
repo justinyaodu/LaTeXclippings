@@ -34,7 +34,6 @@ class LatexFile:
 
         self.clippings = [LatexClipping(c) for c in clippings]
         self._init_chunks(preamble, clippings)
-        self._render()
 
     def _init_chunks(self, preamble, clippings):
         self.chunks = []
@@ -77,7 +76,7 @@ class LatexFile:
     def __str__(self):
         return "\n".join(str(chunk) for chunk in self.chunks)
 
-    def _render(self):
+    def render(self):
         """Render each clipping as a SVG."""
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -349,8 +348,9 @@ def _main():
             with open(path) as f:
                 clippings.append(f.read())
 
+    latex_file = LatexFile(clippings, preamble)
     try:
-        latex_file = LatexFile(clippings, preamble)
+        latex_file.render()
     except LatexError as e:
         if e.clipping_index is not None:
             e.location += f" (input file '{args.file[e.clipping_index]}')"
