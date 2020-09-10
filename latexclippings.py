@@ -3,7 +3,7 @@
 """Batch render LaTeX files to cropped SVG images."""
 
 __all__ = ["LatexFile", "LatexClipping", "LatexError"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Justin Yao Du"
 
 import argparse
@@ -16,6 +16,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import textwrap
 
 
 class LatexFile:
@@ -23,7 +24,11 @@ class LatexFile:
     and additional pages used for internal measurements.
     """
 
-    def __init__(self, clippings, preamble=r"\documentclass{minimal}"):
+    default_preamble = textwrap.dedent(r"""
+        \documentclass{article}
+        \pagestyle{empty}""")
+
+    def __init__(self, clippings, preamble=default_preamble):
         # Remove up to one trailing newline.
         clippings = [re.sub(r"[\n]$", "", c) for c in clippings]
 
