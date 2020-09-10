@@ -379,8 +379,6 @@ def _main():
         outputs = [c.embeddable() for c in latex_file.clippings]
     elif args.format == "svg":
         outputs = [c.svg for c in latex_file.clippings]
-    else:
-        raise ValueError
 
     for path, output in zip(args.file, outputs):
         if path == "-":
