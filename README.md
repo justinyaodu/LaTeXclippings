@@ -14,9 +14,19 @@ Each rendered image is cropped, allowing it to be easily embedded in other conte
 
 LaTeXclippings also parses the `pdflatex` log, matching up each input file with the corresponding log output. If any error messages are found, they are converted into informative Python exceptions, which identify the file and line responsible for an error.
 
-## Dependencies
+## Installation
 
-LaTeXclippings is written in Python, and also uses:
+Install from [PyPI](https://pypi.org/project/latexclippings/):
+
+```console
+pip install latexclippings
+```
+
+Alternatively, simply download [latexclippings.py](latexclippings.py).
+
+### Dependencies
+
+LaTeXclippings requires Python 3.6+, and also uses:
 
 * `pdflatex` to generate PDFs from LaTeX source
 * `inkscape` for PDF cropping and SVG conversion
