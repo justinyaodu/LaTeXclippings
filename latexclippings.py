@@ -93,7 +93,7 @@ class LatexFile:
         with open(tex_file, "w") as f:
             f.write(str(self))
 
-        pdflatex_process = subprocess.run(
+        pdflatex_process = _run_command(
             [
                 "pdflatex",
                 "-halt-on-error",
@@ -303,7 +303,7 @@ class _SVG:
 def _cropped_pdf_page(pdf_path, page):
     """Extract a page of the specified PDF as an _SVG."""
 
-    lines = subprocess.run(
+    lines = _run_command(
         [
             "inkscape",
             "--pdf-poppler",
@@ -321,6 +321,23 @@ def _cropped_pdf_page(pdf_path, page):
     ).stdout.split("\n")
 
     return _SVG(float(lines[0]), float(lines[1]), "\n".join(lines[2:]))
+
+
+def _run_command(command, **kwargs):
+    """Wrapper for subprocess.run which raises a more understandable
+    exception if the command is not found.
+    """
+
+    try:
+        return subprocess.run(command, **kwargs)
+    except FileNotFoundError as e:
+        msg = f"Could not locate external command '{command[0]}'."
+        raise FileNotFoundError(msg) from e
+
+
+def _die(exception):
+    """Print an exception to standard error and exit 1."""
+    sys.exit(f"{exception.__class__.__name__}: {exception}")
 
 
 def _main():
@@ -354,7 +371,9 @@ def _main():
     except LatexError as e:
         if e.clipping_index is not None:
             e.location += f" (input file '{args.file[e.clipping_index]}')"
-        raise
+        _die(e)
+    except FileNotFoundError as e:
+        _die(e)
 
     if args.format == "html":
         outputs = [c.embeddable() for c in latex_file.clippings]
